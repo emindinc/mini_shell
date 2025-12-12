@@ -3,11 +3,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define MAX_CMD_LEN 1024
 
+// SIGCHLD sinyal handler - zombie process'leri temizler
+void sigchld_handler(int signo) {
+    // Tüm biten child process'leri temizle
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+}
+
 // Tek bir komutu çalıştır ve exit code döndür
-int execute_command(char *command) {
+int execute_command(char *command, int background) {
     char *args[64];
     int i = 0;
     
@@ -32,10 +39,10 @@ int execute_command(char *command) {
         else {
             if(chdir(args[1]) != 0) {
                 perror("cd hatası");
-                return 1;  // Hata
+                return 1;
             }
         }
-        return 0;  // Başarılı
+        return 0;
     }
     
     // Built-in: exit komutu
@@ -60,21 +67,45 @@ int execute_command(char *command) {
     }
     else {
         // Parent process
-        int status;
-        waitpid(pid, &status, 0);
-        
-        // Child'ın exit code'unu döndür
-        if(WIFEXITED(status)) {
-            return WEXITSTATUS(status);
+        if(background) {
+            // Arka planda çalışıyor - beklemeden devam et
+            printf("[%d] %s\n", pid, args[0]);
+            return 0;
         }
-        return 1;
+        else {
+            // Ön planda - bitmesini bekle
+            int status;
+            waitpid(pid, &status, 0);
+            
+            if(WIFEXITED(status)) {
+                return WEXITSTATUS(status);
+            }
+            return 1;
+        }
     }
     
     return 0;
 }
 
-// Operatörleri (&&, ||) handle et
+// Operatörleri (&&, ||, &) handle et
 void handle_operators(char *command) {
+    // & kontrolü (arka plan)
+    int background = 0;
+    int len = strlen(command);
+    
+    // Komutun sonunda & var mı?
+    if(len > 0 && command[len-1] == '&') {
+        background = 1;
+        command[len-1] = '\0';  // &'i sil
+        
+        // Sondaki boşlukları temizle
+        len--;
+        while(len > 0 && command[len-1] == ' ') {
+            command[len-1] = '\0';
+            len--;
+        }
+    }
+    
     char *commands[100];
     char *operators[100];
     int cmd_count = 0;
@@ -86,12 +117,12 @@ void handle_operators(char *command) {
     while(*token) {
         // && kontrolü
         if(token[0] == '&' && token[1] == '&') {
-            *token = '\0';  // Komutu kes
+            *token = '\0';
             commands[cmd_count] = start;
             operators[cmd_count] = "&&";
             cmd_count++;
             token += 2;
-            while(*token == ' ') token++;  // Boşlukları atla
+            while(*token == ' ') token++;
             start = token;
             continue;
         }
@@ -118,29 +149,29 @@ void handle_operators(char *command) {
     // Komutları sırayla çalıştır
     int exit_code = 0;
     for(int i = 0; i < cmd_count; i++) {
-        // Boşlukları temizle
         char *cmd = commands[i];
         while(*cmd == ' ') cmd++;
         
         if(strlen(cmd) == 0) continue;
         
-        // İlk komut veya operatöre göre çalıştır
+        // Background sadece son komutta geçerli
+        int is_last = (i == cmd_count - 1);
+        int bg = (is_last && background) ? 1 : 0;
+        
         if(i == 0) {
-            exit_code = execute_command(cmd);
+            exit_code = execute_command(cmd, bg);
         }
         else {
             char *op = operators[i-1];
             
             if(strcmp(op, "&&") == 0) {
-                // Önceki başarılıysa çalıştır
                 if(exit_code == 0) {
-                    exit_code = execute_command(cmd);
+                    exit_code = execute_command(cmd, bg);
                 }
             }
             else if(strcmp(op, "||") == 0) {
-                // Önceki başarısızsa çalıştır
                 if(exit_code != 0) {
-                    exit_code = execute_command(cmd);
+                    exit_code = execute_command(cmd, bg);
                 }
             }
         }
@@ -149,6 +180,9 @@ void handle_operators(char *command) {
 
 int main() {
     char command[MAX_CMD_LEN];
+    
+    // SIGCHLD sinyal handler'ı kur
+    signal(SIGCHLD, sigchld_handler);
     
     printf("Mini Shell başlatıldı. Çıkmak için 'exit' yazın.\n");
     
