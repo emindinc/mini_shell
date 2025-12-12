@@ -6,37 +6,63 @@
 
 #define MAX_CMD_LEN 1024
 
+// Komutu çalıştıran fonksiyon
+void execute_command(char *command) {
+    char *args[64];
+    int i = 0;
+    
+    args[i] = strtok(command, " ");
+    while(args[i] != NULL && i < 63) {
+        i++;
+        args[i] = strtok(NULL, " ");
+    }
+    args[i] = NULL;
+    
+    pid_t pid = fork();
+    
+    if(pid < 0) {
+        perror("Fork hatası");
+        return;
+    }
+    else if(pid == 0) {
+        // Child process
+        if(execvp(args[0], args) < 0) {
+            printf("Komut bulunamadı: %s\n", args[0]);
+            exit(1);
+        }
+    }
+    else {
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+    }
+}
+
 int main() {
     char command[MAX_CMD_LEN];
     
     printf("Mini Shell başlatıldı. Çıkmak için 'exit' yazın.\n");
     
     while(1) {
-        // Prompt göster
         printf("myshell> ");
         fflush(stdout);
         
-        // Komut oku
         if(fgets(command, MAX_CMD_LEN, stdin) == NULL) {
             break;
         }
         
-        // Newline'ı temizle
         command[strcspn(command, "\n")] = 0;
         
-        // Exit kontrolü
         if(strcmp(command, "exit") == 0) {
             printf("Çıkılıyor...\n");
             break;
         }
         
-        // Boş komut kontrolü
         if(strlen(command) == 0) {
             continue;
         }
         
-        printf("Girilen komut: %s\n", command);
-        // Şimdilik sadece yazdır, sonra çalıştıracağız
+        execute_command(command);
     }
     
     return 0;
