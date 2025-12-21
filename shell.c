@@ -45,9 +45,34 @@ int execute_command(char *command, int background) {
         return 0;
     }
     
+    // Built-in: clear komutu
+    if(strcmp(args[0], "clear") == 0) {
+        printf("\033[H\033[J");
+        return 0;
+    }
+    
+    // Built-in: help komutu
+    if(strcmp(args[0], "help") == 0) {
+        printf("\n\033[1;36m=== Mini Shell Komutları ===\033[0m\n\n");
+        printf("\033[1;33mBuilt-in Komutlar:\033[0m\n");
+        printf("  \033[32mcd [dizin]\033[0m       - Dizin değiştir\n");
+        printf("  \033[32mclear\033[0m            - Ekranı temizle\n");
+        printf("  \033[32mhelp\033[0m             - Bu yardım mesajını göster\n");
+        printf("  \033[32mexit\033[0m             - Shell'den çık\n\n");
+        printf("\033[1;33mOperatörler:\033[0m\n");
+        printf("  \033[36mkomut1 && komut2\033[0m - komut1 başarılıysa komut2'yi çalıştır\n");
+        printf("  \033[36mkomut1 || komut2\033[0m - komut1 başarısızsa komut2'yi çalıştır\n");
+        printf("  \033[36mkomut &\033[0m          - Komutu arka planda çalıştır\n\n");
+        printf("\033[1;33mÖrnekler:\033[0m\n");
+        printf("  ls && pwd\n");
+        printf("  mkdir test && cd test\n");
+        printf("  sleep 5 &\n\n");
+        return 0;
+    }
+    
     // Built-in: exit komutu
     if(strcmp(args[0], "exit") == 0) {
-        printf("Çıkılıyor...\n");
+        printf("\033[1;35mÇıkılıyor...\033[0m\n");
         exit(0);
     }
     
@@ -61,7 +86,7 @@ int execute_command(char *command, int background) {
     else if(pid == 0) {
         // Child process
         if(execvp(args[0], args) < 0) {
-            printf("Komut bulunamadı: %s\n", args[0]);
+            printf("\033[1;31mKomut bulunamadı: %s\033[0m\n", args[0]);
             exit(127);
         }
     }
@@ -69,7 +94,7 @@ int execute_command(char *command, int background) {
         // Parent process
         if(background) {
             // Arka planda çalışıyor - beklemeden devam et
-            printf("[%d] %s\n", pid, args[0]);
+            printf("\033[1;33m[%d] %s\033[0m\n", pid, args[0]);
             return 0;
         }
         else {
@@ -184,10 +209,32 @@ int main() {
     // SIGCHLD sinyal handler'ı kur
     signal(SIGCHLD, sigchld_handler);
     
-    printf("Mini Shell başlatıldı. Çıkmak için 'exit' yazın.\n");
+    // Başlangıç mesajı (renkli)
+    printf("\033[1;36m");
+    printf("╔════════════════════════════════════════╗\n");
+    printf("║     Mini Shell - v1.0                 ║\n");
+    printf("║     'help' yazarak yardım alın        ║\n");
+    printf("╚════════════════════════════════════════╝\n");
+    printf("\033[0m\n");
     
     while(1) {
-        printf("myshell> ");
+        // Kullanıcı adı ve dizini al
+        char *username = getenv("USER");
+        char cwd[1024];
+        getcwd(cwd, sizeof(cwd));
+        
+        // Dizini kısalt (sadece son klasör)
+        char *short_cwd = strrchr(cwd, '/');
+        if(short_cwd == NULL) {
+            short_cwd = cwd;
+        } else {
+            short_cwd++;
+        }
+        
+        // Renkli prompt
+        printf("\033[1;32m%s\033[0m:", username);
+        printf("\033[1;34m~/%s\033[0m", short_cwd);
+        printf("\033[1;33m$\033[0m ");
         fflush(stdout);
         
         if(fgets(command, MAX_CMD_LEN, stdin) == NULL) {
