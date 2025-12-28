@@ -216,4 +216,4 @@ Bu proje eğitim amaçlı geliştirilmiştir.
 - Maksimum komut uzunluğu: 1024 karakter
 - Maksimum argüman sayısı: 64
 - Pipe ve redirection henüz desteklenmiyor
-- Ctrl+C ile shell kapanır (gelecek versiyonda düzeltilecek)
+ - Ctrl+C shell'i kapatmaz; Ctrl+C yalnızca çalıştırılan child process'lere iletilir

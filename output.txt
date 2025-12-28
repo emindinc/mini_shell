@@ -1,0 +1,37 @@
+[?1049h[2J[H[48;5;19m[1;97m Mini Shell - v1.0                                         2025-12-28 16:31:48  [0m
+[38;5;24m────────────────────────────────────────────────────────────────────────────────[0m
+
+[5;4H[36m┌──────────────────────────────────────────────────────────────┐[0m
+[6;4H[36m│[0m  [1;36mMini Shell - v1.0[0m                                           [36m│[0m
+[7;4H[36m│[0m  User: colak   Dir: ~/mini_shell                             [36m│[0m
+[8;4H[36m│[0m  Built-ins: help clear exit pwd echo cat touch mkdir rmdir   [36m│[0m
+[9;4H[36m└──────────────────────────────────────────────────────────────┘[0m
+
+[11;3H[2m[90m                                                                          [0m
+[24;1H[2m[36m help: yardim                               Ctrl+C: satırı iptal et [0m[12;1H[1;32mcolak[0m:[1;34m~/mini_shell[0m[1;33m$[0m 
+[1;36m=== Mini Shell Komutları ===[0m
+
+[1;33mBuilt-in Komutlar:[0m
+  [32mcd [dizin][0m       - Dizin değiştir
+  [32mpwd[0m              - Geçerli çalışma dizinini yazdır
+  [32mcat [dosya][0m       - Dosya içeriğini göster
+  [32mclear[0m            - Ekranı temizle
+  [32mecho [metin][0m       - Metni ekrana yazdır
+  [32mmkdir [dizin][0m   - Yeni dizin oluştur
+  [32mrmdir [dizin][0m   - Boş dizini sil
+  [32mtouch [dosya][0m    - Yeni boş dosya oluştur
+  [32mhelp[0m             - Bu yardım mesajını göster
+  [32mexit[0m             - Shell'den çık
+
+[1;33mOperatörler:[0m
+  [36mkomut1 && komut2[0m - komut1 başarılıysa komut2'yi çalıştır
+  [36mkomut1 || komut2[0m - komut1 başarısızsa komut2'yi çalıştır
+  [36mkomut &[0m          - Komutu arka planda çalıştır
+
+[1;33mÖrnekler:[0m
+  ls && pwd
+  mkdir test && cd test
+  sleep 5 &
+
+[1;32mcolak[0m:[1;34m~/mini_shell[0m[1;33m$[0m [1;35mÇıkılıyor...[0m
+[0m[?1049l
