@@ -338,16 +338,90 @@ int execute_command(char *command, int background) {
 }
 
 // && ve || operatörlerini ayırıp execute_command'ı çağıran fonksiyon
+// GÜÇLENDİRİLMİŞ OPERATÖR YÖNETİMİ (&& ve || Destekli)
 void handle_operators(char *command) {
-    // Sondaki & işaretini kontrol et
-    int bg = 0;
+    // 1. Arka Plan (&) Kontrolü
+    int background = 0;
     int len = strlen(command);
-    if(len > 0 && command[len-1] == '&') { bg = 1; command[len-1] = 0; }
+    
+    // Sondaki boşlukları temizle
+    while(len > 0 && isspace(command[len-1])) {
+        command[len-1] = '\0';
+        len--;
+    }
 
-    // Basitçe ilk komutu alıp çalıştıralım (Karmaşık && zincirini basitleştirdim)
-    // Eğer full zincir istersen senin eski kodunu buraya geri koyabilirsin.
-    // Şimdilik stabilite için tekli çalıştırıyoruz.
-    execute_command(command, bg); 
+    // Komutun sonunda & var mı?
+    if(len > 0 && command[len-1] == '&') {
+        background = 1;
+        command[len-1] = '\0'; // &'i sil
+        len--;
+    }
+
+    // 2. Komutları && ve || operatörlerine göre parçala
+    char *commands[64];     // Komutlar listesi
+    int ops[64];            // Operatörler: 1=&&, 2=||
+    int cmd_count = 0;
+
+    char *ptr = command;
+    char *start = command;
+    
+    while(*ptr) {
+        // && kontrolü
+        if(ptr[0] == '&' && ptr[1] == '&') {
+            *ptr = '\0'; // Stringi buradan kes
+            commands[cmd_count] = start;
+            ops[cmd_count] = 1; // 1 = AND (&&)
+            cmd_count++;
+            ptr += 2;
+            while(isspace(*ptr)) ptr++; // Boşlukları atla
+            start = ptr;
+            continue;
+        }
+        
+        // || kontrolü
+        if(ptr[0] == '|' && ptr[1] == '|') {
+            *ptr = '\0'; // Stringi buradan kes
+            commands[cmd_count] = start;
+            ops[cmd_count] = 2; // 2 = OR (||)
+            cmd_count++;
+            ptr += 2;
+            while(isspace(*ptr)) ptr++; // Boşlukları atla
+            start = ptr;
+            continue;
+        }
+        ptr++;
+    }
+    
+    // Son kalan komutu ekle
+    commands[cmd_count] = start;
+    cmd_count++;
+
+    // 3. Mantıksal Çalıştırma Döngüsü
+    // İlk komutu her zaman çalıştır
+    // background sadece son komut için veya tüm grup için geçerli olabilir. 
+    // Basitlik adına burada her komuta gönderiyoruz ama process'ler waitpid ile yönetiliyor.
+    
+    int ret = execute_command(commands[0], (cmd_count == 1 ? background : 0));
+
+    for(int i = 1; i < cmd_count; i++) {
+        int op = ops[i-1];
+        
+        // && (AND): Önceki başarılıysa (ret == 0) çalıştır
+        if(op == 1) {
+            if(ret == 0) {
+                // Son komutsa ve background varsa ona göre çalıştır
+                int is_last = (i == cmd_count - 1);
+                ret = execute_command(commands[i], (is_last ? background : 0));
+            }
+        }
+        // || (OR): Önceki başarısızsa (ret != 0) çalıştır
+        else if(op == 2) {
+            if(ret != 0) {
+                int is_last = (i == cmd_count - 1);
+                ret = execute_command(commands[i], (is_last ? background : 0));
+            }
+        }
+    }
 }
 
 void shell_loop() {
