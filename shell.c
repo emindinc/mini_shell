@@ -42,131 +42,132 @@ static void enter_alt_screen(void) {
 static void draw_header_footer(void) {
     struct winsize w;
     if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
-        // fallback sizes
         w.ws_row = 24; w.ws_col = 80;
     }
     int rows = w.ws_row;
     int cols = w.ws_col;
 
-    // Clear and position
+    // Ekranı temizle ve imleci sol üst köşeye al
     printf("\033[2J");
     printf("\033[H");
 
-    // Build a timestamp for the header's right side
-    time_t now = time(NULL);
-    struct tm *lt = localtime(&now);
-    char timestr[64] = "";
-    if(lt) strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S", lt);
-
-    // Header: left title, right timestamp
-    char title_left[] = "Mini Shell";
-    char version[] = "v1.0";
-    char header_full[128];
-    snprintf(header_full, sizeof(header_full), " %s - %s ", title_left, version);
-
-    // Draw header background and content
-    printf("\033[48;5;19m\033[1;97m");
-    int left_len = (int)strlen(header_full);
-    int right_len = (int)strlen(timestr);
-    int middle_space = cols - left_len - right_len - 2; // padding
-    if(middle_space < 0) middle_space = 0;
-    printf("%s", header_full);
-    for(int i = 0; i < middle_space; i++) putchar(' ');
-    if(right_len) printf("%s", timestr);
-    for(int i = left_len + middle_space + right_len; i < cols; i++) putchar(' ');
-    printf("\033[0m\n");
-
-    // Decorative separator (thin line)
-    printf("\033[38;5;24m");
-    for(int i = 0; i < cols; i++) printf("─");
-    printf("\033[0m\n\n");
-
-    // Info box: show title, user, cwd, and built-ins (single tidy box)
+    // --- ÜST BİLGİ KUTUSU (Login Bilgileri) ---
     char *username = getenv("USER");
-    if(username == NULL) username = getenv("USERNAME");
-    if(username == NULL) username = "user";
+    if(!username) username = "user";
+    
     char cwd[1024];
     if(getcwd(cwd, sizeof(cwd)) == NULL) strcpy(cwd, "~");
+    
+    // Klasör yolunu kısalt (Sadece son klasör ismi)
     char *short_cwd = strrchr(cwd, '/');
     if(short_cwd) short_cwd++; else short_cwd = cwd;
 
-    int box_w = (cols > 64) ? 64 : cols - 8;
-    int box_x = 4;
-    int box_y = 5;
-    int inner_w = box_w - 4;
-    // Compose lines
-    char line1[256];
-    char line2[256];
-    snprintf(line1, sizeof(line1), "%s - %s", title_left, version);
-    snprintf(line2, sizeof(line2), "User: %s   Dir: ~/%s", username, short_cwd);
-    /* no extra third line variable */
+    // Renk Tanımları (Menü ile uyumlu Mor/Cyan)
+    char *border = "\033[38;5;93m"; // Mor Çerçeve
+    char *label  = "\033[1;30m";    // Gri Etiketler
+    char *text   = "\033[1;97m";    // Beyaz Yazı
+    char *cyan   = "\033[1;36m";    // Cyan Vurgu
+    char *reset  = "\033[0m";
 
-    printf("\033[%d;%dH", box_y, box_x);
-    printf("\033[36m┌");
-    for(int i = 0; i < box_w - 2; i++) printf("─");
-    printf("┐\033[0m\n");
+    printf("\n");
+    // Kutunun üstü
+    printf("  %s┌───────────────────────────────────────────────────┐%s\n", border, reset);
+    
+    // Kullanıcı Adı Satırı
+    printf("  %s│%s USER : %s%-15s                          %s│%s\n", 
+           border, label, cyan, username, border, reset);
+           
+    // Dizin Satırı
+    printf("  %s│%s DIR  : %s%-15s                          %s│%s\n", 
+           border, label, text, short_cwd, border, reset);
+           
+    // Kutunun altı
+    printf("  %s└───────────────────────────────────────────────────┘%s\n", border, reset);
 
-    // Line 1
-    printf("\033[%d;%dH", box_y + 1, box_x);
-    printf("\033[36m│\033[0m  \033[1;36m%s\033[0m", line1);
-    int used = (int)strlen(line1);
-    for(int i = 0; i < inner_w - used; i++) putchar(' ');
-    printf("\033[36m│\033[0m\n");
+    // --- ALT BİLGİ ÇUBUĞU (FOOTER) ---
+    // İmleci terminalin en alt satırına taşı
+    printf("\033[%d;1H", rows);
+    
+    // Arkaplanı Mor, Yazıyı Beyaz Yap
+    printf("\033[48;5;93m\033[1;97m");
+    
+    // Footer metni (İstediğin 'exit' uyarısı burada)
+    char footer_msg[] = " ÇIKIŞ: 'exit' | TEMİZLE: 'clear' | YARDIM: 'help' ";
+    
+    int len = strlen(footer_msg);
+    int padding = (cols - len) / 2; // Ortalamak için boşluk hesabı
+    if(padding < 0) padding = 0;
 
-    // Line 2 (user/dir)
-    printf("\033[%d;%dH", box_y + 2, box_x);
-    printf("\033[36m│\033[0m  %s", line2);
-    int l2 = (int)strlen(line2);
-    for(int i = 0; i < inner_w - l2; i++) putchar(' ');
-    printf("\033[36m│\033[0m\n");
+    // Sol boşluk
+    for(int i=0; i<padding; i++) putchar(' ');
+    // Mesajı yaz
+    printf("%s", footer_msg);
+    // Sağ boşluk (Satır sonuna kadar boyamak için)
+    for(int i=padding+len; i<cols; i++) putchar(' ');
+    
+    // Renkleri sıfırla
+    printf("%s", reset);
 
-    // Line 3: small tagline (keep header minimal)
-    printf("\033[%d;%dH", box_y + 3, box_x);
-    printf("\033[36m│\033[0m  %s", "Basit, hafif ve hızlı. 'help' yazın.");
-    int l3 = (int)strlen("Basit, hafif ve hızlı. 'help' yazın.");
-    for(int i = 0; i < inner_w - l3; i++) putchar(' ');
-    printf("\033[36m│\033[0m\n");
-
-    // Bottom border
-    printf("\033[%d;%dH", box_y + 4, box_x);
-    printf("\033[36m└");
-    for(int i = 0; i < box_w - 2; i++) printf("─");
-    printf("┘\033[0m\n\n");
-
-    // Prompt area with subtle framed line
-    int pbox_row = box_y + 6;
-    int pcol = 3;
-    printf("\033[%d;%dH", pbox_row, pcol);
-    printf("\033[2m\033[90m");
-    for(int i = 0; i < cols - 6; i++) putchar(' ');
-    printf("\033[0m\n");
-
-    // Footer: left and right hints
-    int footer_row = rows;
-    char left_hint[] = "help: yardim  ";
-    char mid_hint[] = " clear ";
-    char right_hint[128];
-    snprintf(right_hint, sizeof(right_hint), " %s ", "Ctrl+C: satırı iptal et");
-
-    printf("\033[%d;1H", footer_row);
-    // left hint in dim cyan
-    printf("\033[2m\033[36m");
-    printf(" %s", left_hint);
-    // center small hint
-    int used_footer = (int)strlen(left_hint) + (int)strlen(mid_hint) + (int)strlen(right_hint) + 4;
-    int spaces = cols - used_footer;
-    if(spaces < 0) spaces = 0;
-    for(int i = 0; i < spaces; i++) putchar(' ');
-    printf("%s", right_hint);
-    printf("\033[0m");
-
-    // Place cursor after header region for prompt input
-    printf("\033[%d;1H", pbox_row + 1);
+    // İmleci komut yazmak için kutunun hemen altına (6. satıra) geri getir
+    printf("\033[6;1H"); 
     fflush(stdout);
-
-    // (removed old duplicate subtitle/footer block)
+}
+// Havalı bir ASCII Logo
+void draw_ascii_logo() {
+    printf("\033[1;36m"); // Cyan renk
+    printf("  __  __ _       _   ____  _          _ _ \n");
+    printf(" |  \\/  (_)_ __ (_) / ___|| |__   ___| | |\n");
+    printf(" | |\\/| | | '_ \\| | \\___ \\| '_ \\ / _ \\ | |\n");
+    printf(" | |  | | | | | | |  ___) | | | |  __/ | |\n");
+    printf(" |_|  |_|_|_| |_|_| |____/|_| |_|\\___|_|_|\n");
+    printf("\033[0m");
+    printf("\033[1;35m        >> SYSTEM READY << \033[0m\n\n");
 }
 
+// Modern Giriş Menüsü
+// Modern Giriş Menüsü (Düzeltilmiş Versiyon)
+void show_fancy_menu() {
+    // Ekranı temizle
+    printf("\033[2J\033[H");
+    
+    // Renk tanımları
+    char *border_c = "\033[38;5;93m"; // Mor Çerçeve
+    char *text_c = "\033[1;97m";      // Beyaz Metin
+    char *accent_c = "\033[1;32m";    // Yeşil Vurgu
+    char *reset = "\033[0m";          // Sıfırla
+
+    printf("\n");
+    
+    // 1. Logo Bölümü
+    printf("      "); 
+    draw_ascii_logo();
+
+    // 2. Bilgi Paneli
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    char date_str[64];
+    strftime(date_str, sizeof(date_str), "%d-%m-%Y %H:%M", &tm);
+    
+    char *user = getenv("USER");
+    if(!user) user = "unknown";
+
+    // Buradaki printf argüman hataları düzeltildi:
+    printf("      %s┌────────────────────────────────────────────────────────┐%s\n", border_c, reset);
+    printf("      %s│%s  USER: %-15s   OS: Linux / MiniShell v1.0 %s│%s\n", border_c, accent_c, user, border_c, reset);
+    printf("      %s│%s  DATE: %-15s   STATUS: %sONLINE             %s│%s\n", border_c, text_c, date_str, "\033[1;5;32m", border_c, reset);
+    printf("      %s└────────────────────────────────────────────────────────┘%s\n\n", border_c, reset);
+
+    // 3. Menü Seçenekleri
+    // Buradaki fazla değişkenler temizlendi:
+    printf("      %s╔════════════════════════════╗   ╔═══════════════════╗%s\n", border_c, reset);
+    printf("      %s║ %s[1] SHELL'İ BAŞLAT       %s║   ║ %s[2] SİSTEM ÇIKIŞ  %s║%s\n", border_c, "\033[1;36m", border_c, "\033[1;31m", border_c, reset);
+    printf("      %s║ %sTerminal arayüzüne git   %s║   ║ %sKapat ve çık      %s║%s\n", border_c, "\033[0;37m", border_c, "\033[0;37m", border_c, reset);
+    printf("      %s╚════════════════════════════╝   ╚═══════════════════╝%s\n", border_c, reset);
+    
+    printf("\n");
+    printf("      %sKomutunuzu girin > %s", accent_c, reset);
+} 
+// DİKKAT: Bu süslü parantez (}) çok önemli, eksik olursa 'expected declaration' hatası alırsın.
 // SIGCHLD sinyal handler - zombie process'leri temizler
 void sigchld_handler(int signo) {
     (void)signo;
@@ -237,36 +238,114 @@ int execute_command(char *command, int background) {
         printf("\033[H\033[J");
         return 0;
     }
+
+    // --- BURADAN BAŞLA (execute_command içine ekle) ---
+
+    // Built-in: rm [dosya] (Dosya silme)
+    if(strcmp(args[0], "rm") == 0) {
+        if(args[1] == NULL) {
+            fprintf(stderr, "rm: eksik argüman\n");
+            return 1;
+        }
+        if(unlink(args[1]) != 0) {
+            perror("rm hatası");
+            return 1;
+        }
+        return 0;
+    }
+
+    // Built-in: mv [kaynak] [hedef] (Taşıma/İsim değiştirme)
+    if(strcmp(args[0], "mv") == 0) {
+        if(args[1] == NULL || args[2] == NULL) {
+            fprintf(stderr, "mv: eksik argüman (kullanım: mv kaynak hedef)\n");
+            return 1;
+        }
+        if(rename(args[1], args[2]) != 0) {
+            perror("mv hatası");
+            return 1;
+        }
+        return 0;
+    }
+
+    // Built-in: cp [kaynak] [hedef] (Kopyalama)
+    if(strcmp(args[0], "cp") == 0) {
+        if(args[1] == NULL || args[2] == NULL) {
+            fprintf(stderr, "cp: eksik argüman (kullanım: cp kaynak hedef)\n");
+            return 1;
+        }
+        
+        int src_fd = open(args[1], O_RDONLY);
+        if(src_fd < 0) {
+            perror("cp: kaynak okunamadı");
+            return 1;
+        }
+
+        // Hedef dosyayı oluştur (varsa üzerine yazar: O_TRUNC), izinler 0644
+        int dest_fd = open(args[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if(dest_fd < 0) {
+            perror("cp: hedef oluşturulamadı");
+            close(src_fd);
+            return 1;
+        }
+
+        char buf[4096];
+        ssize_t nread;
+        while((nread = read(src_fd, buf, sizeof(buf))) > 0) {
+            if(write(dest_fd, buf, nread) != nread) {
+                perror("cp: yazma hatası");
+                close(src_fd);
+                close(dest_fd);
+                return 1;
+            }
+        }
+
+        close(src_fd);
+        close(dest_fd);
+        return 0;
+    }
+
+    // Built-in: env (Ortam değişkenlerini listele)
+    if(strcmp(args[0], "env") == 0) {
+        extern char **environ; // Global çevre değişkenleri pointer'ı
+        for(char **env = environ; *env != 0; env++) {
+            printf("%s\n", *env);
+        }
+        return 0;
+    }
+    
+    // --- BURADA BİTİR ---
     
     // Built-in: help komutu
     if(strcmp(args[0], "help") == 0) {
         printf("\n\033[1;36m=== Mini Shell Komutları ===\033[0m\n\n");
-        printf("\033[1;33mBuilt-in Komutlar:\033[0m\n");
-        printf("  \033[32mcd [dizin]\033[0m       - Dizin değiştir\n");
-        printf("  \033[32mpwd\033[0m              - Geçerli çalışma dizinini yazdır\n");
+        printf("\033[1;33mDosya İşlemleri:\033[0m\n");
         printf("  \033[32mcat [dosya]\033[0m       - Dosya içeriğini göster\n");
-        printf("  \033[32mclear\033[0m            - Ekranı temizle\n");
-        printf("  \033[32mecho [metin]\033[0m       - Metni ekrana yazdır\n");
-        printf("  \033[32mmkdir [dizin]\033[0m   - Yeni dizin oluştur\n");
-        printf("  \033[32mrmdir [dizin]\033[0m   - Boş dizini sil\n");
-        printf("  \033[32mtouch [dosya]\033[0m    - Yeni boş dosya oluştur\n");
-        printf("  \033[32mhelp\033[0m             - Bu yardım mesajını göster\n");
-        printf("  \033[32mexit\033[0m             - Menüye dön\n\n");
-        printf("  \033[32mwhoami\033[0m           - Aktif kullanıcı adını göster\n");
-        printf("  \033[32mdate\033[0m             - Sistem tarih/saat\n");
-        printf("  \033[32muptime\033[0m           - Sistemin uptime süresi\n");
-        printf("  \033[32mhistory\033[0m          - Komut geçmişini göster\n\n");
+        printf("  \033[32mtouch [dosya]\033[0m     - Yeni dosya oluştur\n");
+        printf("  \033[32mrm [dosya]\033[0m        - Dosyayı sil (YENİ)\n");
+        printf("  \033[32mcp [src] [dst]\033[0m    - Dosyayı kopyala (YENİ)\n");
+        printf("  \033[32mmv [src] [dst]\033[0m    - Dosyayı taşı/ad değiştir (YENİ)\n");
+        
+        printf("\n\033[1;33mDizin İşlemleri:\033[0m\n");
+        printf("  \033[32mcd [dizin]\033[0m        - Dizin değiştir\n");
+        printf("  \033[32mpwd\033[0m               - Bulunduğun dizini göster\n");
+        printf("  \033[32mmkdir [dizin]\033[0m     - Klasör oluştur\n");
+        printf("  \033[32mmkdir [dizin]\033[0m     - Klasör sil\n");
+
+        printf("\n\033[1;33mSistem ve Bilgi:\033[0m\n");
+        printf("  \033[32mclear\033[0m             - Ekranı temizle\n");
+        printf("  \033[32mecho [metin]\033[0m      - Ekrana yazı yaz\n");
+        printf("  \033[32mwhoami\033[0m            - Kullanıcı adı\n");
+        printf("  \033[32mdate\033[0m              - Tarih ve saat\n");
+        printf("  \033[32muptime\033[0m            - Çalışma süresi\n");
+        printf("  \033[32mhistory\033[0m           - Komut geçmişi\n");
+        printf("  \033[32menv\033[0m               - Ortam değişkenleri (YENİ)\n");
+        printf("  \033[32mhelp\033[0m              - Yardım menüsü\n");
+        printf("  \033[32mexit\033[0m              - Çıkış\n\n");
+
         printf("\033[1;33mOperatörler:\033[0m\n");
-        printf("  \033[36mkomut1 && komut2\033[0m - komut1 başarılıysa komut2'yi çalıştır\n");
-        printf("  \033[36mkomut1 || komut2\033[0m - komut1 başarısızsa komut2'yi çalıştır\n");
-        printf("  \033[36mkomut &\033[0m          - Komutu arka planda çalıştır\n\n");
-        printf("\033[1;33mÖrnekler:\033[0m\n");
-        printf("  ls && pwd\n");
-        printf("  mkdir test && cd test\n");
-        printf("  sleep 5 &\n\n");
+        printf("  \033[36m&&\033[0m (VE), \033[36m||\033[0m (VEYA), \033[36m&\033[0m (Arkaplan)\n\n");
         return 0;
     }
-
     // Built-in: cat komutu (basit)
     if(strcmp(args[0], "cat") == 0) {
         if(args[1] == NULL) {
@@ -592,36 +671,52 @@ static void shell_loop(void) {
 }
 
 int main() {
-    
-    // SIGCHLD sinyal handler'ı kur
+    // Sinyal handler'lar
     signal(SIGCHLD, sigchld_handler);
-    // SIGINT için özel handler: Ctrl+C satırı iptal etsin ama shell kapanmasın
     signal(SIGINT, sigint_handler);
-    // Set locale so box-drawing and UTF-8 characters render correctly
+    
+    // Karakter seti ayarı (Kutuların düzgün görünmesi için)
     setlocale(LC_ALL, "");
-    // Enter alternate screen and draw a nicer header/footer UI
-    enter_alt_screen();
-    // Echo control karakterlerinin (^C gibi) terminalde görünmesini kapat
+    
+    // İlk açılışta ekranı temizle
+    printf("\033[2J\033[H");
+
     disable_echoctl();
     atexit(restore_terminal);
-    
-    // (startup banner removed; alternate screen UI draws header)
-    
-    // Simple main menu loop
+
     while(1) {
-        printf("\n1) Shell'i başlat\n2) Çıkış\n\nSeçiminiz: ");
+        // Menüyü göster
+        show_fancy_menu(); 
+        
         fflush(stdout);
         char choice[16];
         if(fgets(choice, sizeof(choice), stdin) == NULL) break;
         choice[strcspn(choice, "\n")] = 0;
+        
         if(strlen(choice) == 0 || choice[0] == '1') {
-            // enter interactive shell loop
+            // Yükleniyor efekti
+            printf("\n\033[1;33m[*] Çekirdek yükleniyor...\033[0m");
+            fflush(stdout);
+            usleep(300000); 
+            printf("\r\033[1;32m[OK] Shell aktif!         \033[0m\n");
+            usleep(200000);
+            
+            // Shell döngüsüne gir
+            enter_alt_screen();
             return_to_menu = 0;
             shell_loop();
-            // if user requested return to menu, continue; otherwise exit
-            if(!return_to_menu) break;
-        } else if(choice[0] == '2' || tolower(choice[0]) == 'q') {
+            restore_ui(); 
+            
+            // Eğer exit ile çıkılmadıysa programdan çıkma, menüye dön
+            if(!return_to_menu) break; 
+        } 
+        else if(choice[0] == '2' || tolower(choice[0]) == 'q') {
+            printf("\n\033[1;35mGüle güle, %s!\033[0m\n", getenv("USER"));
             break;
+        }
+        else {
+             // Hatalı giriş için bip sesi
+             printf("\a"); 
         }
     }
     
