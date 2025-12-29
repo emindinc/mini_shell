@@ -353,9 +353,7 @@ Bu proje aşağıdaki kaynaklardan ilham almıştır:
 
 ## 📞 İletişim
 
-- 📧 Email: email@example.com
-- 🐦 Twitter: [@kullanici_adi](https://twitter.com/kullanici_adi)
-- 💼 LinkedIn: [Profil](https://linkedin.com/in/kullanici)
+- 💼 LinkedIn: [Profil](https://www.linkedin.com/in/muhammed-emin-dinc/)
 
 ---
 
