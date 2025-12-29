@@ -87,7 +87,7 @@ void sigint_handler(int signo) {
 
 // Ana Menü
 void show_fancy_menu() {
-    printf("\033[2J\033[H"); // Ekranı temizle
+    printf("\033[H\033[2J\033[3J"); // Ekranı ve GEÇMİŞİ temizle
 
     struct sysinfo si;
     long ram_total = 0, ram_used = 0;
@@ -147,11 +147,13 @@ int execute_command(char *command, int background) {
         return_to_menu = 1;
         return 0;
     }
-    
+
     if(strcmp(args[0], "clear") == 0) {
-        printf("\033[2J\033[H");
-        return 0;
-    }
+    printf("\033[H\033[2J\033[3J"); // 3J kodu geçmişi siler
+    return 0;
+  }
+    
+   
     
     if(strcmp(args[0], "cd") == 0) {
         char *target = args[1] ? args[1] : getenv("HOME");
@@ -643,14 +645,17 @@ int main() {
             printf("\n%s[*] Shell baslatiliyor...%s", C_GREEN, C_RESET);
             fflush(stdout);
             usleep(200000);
-            printf("\033[2J\033[H");
+            printf("\033[H\033[2J\033[3J"); // Geçişte geçmişi sil
             return_to_menu = 0;
-            shell_loop();
             
+            shell_loop();
+
             if(return_to_menu) {
-                printf("\033[2J\033[H");
-                continue;
-            }
+            printf("\033[H\033[2J\033[3J"); // Menüye dönerken geçmişi sil
+            continue;
+        }
+            
+            
             break;
         } 
         else if(choice[0] == '2' || choice[0] == 'q') {
